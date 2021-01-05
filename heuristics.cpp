@@ -6,6 +6,18 @@
 
 namespace Mandoline
 {
+<<<<<<< HEAD
+    Transform::Transform(Graph const &graph, Eigen::Affine2d const &transform) : m_graph(graph), m_transform(transform)
+    {
+    }
+
+    void Transform::Compute(Graph &output)
+    {
+        std::vector<Eigen::Vector2d> out_vertices;
+
+        std::vector<Eigen::Vector2d> const &graph_vertices = m_graph.Vertices();
+        std::vector<Eigen::Array2i> const &graph_edges = m_graph.Edges();
+=======
     Transform::Transform(Polygon const &polygon, Eigen::Affine2d const &transform) : m_polygon(polygon), m_transform(transform)
     {
     }
@@ -16,11 +28,28 @@ namespace Mandoline
 
         std::vector<Eigen::Vector2d> const &polygon_vertices = m_polygon.Vertices();
         std::vector<Eigen::Array2i> const &polygon_edges = m_polygon.Edges();
+>>>>>>> 852ca8a3d89f18267859ca1be967e5ca0833c2c8
 
         auto vertex_transform_operator = [transform = m_transform](Eigen::Vector2d const &vertex) -> Eigen::Vector2d {
             return transform * vertex;
         };
 
+<<<<<<< HEAD
+        std::transform(std::cbegin(graph_vertices), std::cend(graph_vertices), std::back_inserter(out_vertices), vertex_transform_operator);
+
+        output = Graph(out_vertices, graph_edges);
+    }
+
+    Merge::Merge(std::vector<Graph> const &graphs) : m_graphs(graphs)
+    {
+    }
+
+    Merge::Merge(std::initializer_list<Graph> const &graphs) : m_graphs(graphs)
+    {
+    }
+
+    void Merge::Compute(Graph &output)
+=======
         std::transform(std::cbegin(polygon_vertices), std::cend(polygon_vertices), std::back_inserter(out_vertices), vertex_transform_operator);
 
         output = Polygon(out_vertices, polygon_edges);
@@ -35,15 +64,51 @@ namespace Mandoline
     }
 
     void Merge::Compute(Polygon &output)
+>>>>>>> 852ca8a3d89f18267859ca1be967e5ca0833c2c8
     {
         std::vector<Eigen::Vector2d> out_vertices;
         std::vector<Eigen::Array2i> out_edges;
 
+<<<<<<< HEAD
+        for (Graph const &graph : m_graphs) {
+=======
         for (Polygon const &polygon : m_polygons) {
+>>>>>>> 852ca8a3d89f18267859ca1be967e5ca0833c2c8
             auto edge_transform_operator = [size = out_edges.size()](Eigen::Array2i const &edge) -> Eigen::Array2i {
                 return Eigen::Array2i(edge[0] + size, edge[1] + size);
             };
 
+<<<<<<< HEAD
+            std::vector<Eigen::Vector2d> const &graph_vertices = graph.Vertices();
+            std::vector<Eigen::Array2i> const &graph_edges = graph.Edges();
+
+            std::copy(std::cbegin(graph_vertices), std::cend(graph_vertices), std::back_inserter(out_vertices));
+            std::transform(std::cbegin(graph_edges), std::cend(graph_edges), std::back_inserter(out_edges), edge_transform_operator);
+        }
+
+        output = Graph(out_vertices, out_edges);
+    }
+
+    Invert::Invert(Graph const &graph) : m_graph(graph)
+    {
+    }
+
+    void Invert::Compute(Graph &output)
+    {
+        std::vector<Eigen::Vector2d> graph_vertices = m_graph.Vertices();
+        std::vector<Eigen::Array2i> graph_edges = m_graph.Edges();
+
+        std::reverse(std::begin(graph_vertices), std::end(graph_vertices));
+
+        output = Graph(graph_vertices, graph_edges);
+    }
+
+    Extrude::Extrude(Graph const &graph, double const &distance) : m_graph(graph), m_distance(distance)
+    {
+    }
+
+    void Extrude::Compute(Graph &output)
+=======
             std::vector<Eigen::Vector2d> const &polygon_vertices = polygon.Vertices();
             std::vector<Eigen::Array2i> const &polygon_edges = polygon.Edges();
 
@@ -59,6 +124,7 @@ namespace Mandoline
     }
 
     void Extrude::Compute(Polygon &output)
+>>>>>>> 852ca8a3d89f18267859ca1be967e5ca0833c2c8
     {
         auto edge_pair_comparator = [](std::pair<Eigen::Array2i, Eigen::Array2i> const &lhs, std::pair<Eigen::Array2i, Eigen::Array2i> const &rhs) -> bool {
             auto edge_hash = [](Eigen::Array2i const &edge) -> int32_t {
@@ -71,10 +137,17 @@ namespace Mandoline
         // Create a set of pairs of neighboring edges
         std::set<std::pair<Eigen::Array2i, Eigen::Array2i>, decltype(edge_pair_comparator)> edge_pairs(edge_pair_comparator);
 
+<<<<<<< HEAD
+        std::vector<Eigen::Array2i> const &graph_edges = m_graph.Edges();
+
+        for (auto iter_a = std::cbegin(graph_edges); iter_a != std::cend(graph_edges); ++iter_a) {
+            for (auto iter_b = std::next(iter_a); iter_b != std::cend(graph_edges); ++iter_b) {
+=======
         std::vector<Eigen::Array2i> const &polygon_edges = m_polygon.Edges();
 
         for (auto iter_a = std::cbegin(polygon_edges); iter_a != std::cend(polygon_edges); ++iter_a) {
             for (auto iter_b = std::next(iter_a); iter_b != std::cend(polygon_edges); ++iter_b) {
+>>>>>>> 852ca8a3d89f18267859ca1be967e5ca0833c2c8
                 Eigen::Array2i const &edge_a = *iter_a;
                 Eigen::Array2i const &edge_b = *iter_b;
 
@@ -86,6 +159,16 @@ namespace Mandoline
         }
 
         // Of the edge pairs, move their shared vertex to the intersection of the extruded edges
+<<<<<<< HEAD
+        std::vector<Eigen::Vector2d> graph_vertices(m_graph.Vertices().size());
+
+        for (auto const &[edge_a, edge_b] : edge_pairs) {
+            std::array<Eigen::Vector2d, 2> const &segment_a = m_graph.Segment(edge_a);
+            std::array<Eigen::Vector2d, 2> const &segment_b = m_graph.Segment(edge_b);
+
+            Eigen::Vector2d const normal_a = m_graph.Line(edge_a).normal();
+            Eigen::Vector2d const normal_b = m_graph.Line(edge_b).normal();
+=======
         std::vector<Eigen::Vector2d> polygon_vertices(m_polygon.Vertices().size());
 
         for (auto const &[edge_a, edge_b] : edge_pairs) {
@@ -94,6 +177,7 @@ namespace Mandoline
 
             Eigen::Vector2d const normal_a = m_polygon.Line(edge_a).normal();
             Eigen::Vector2d const normal_b = m_polygon.Line(edge_b).normal();
+>>>>>>> 852ca8a3d89f18267859ca1be967e5ca0833c2c8
 
             std::array<Eigen::Vector2d, 2> const new_segment_a = { segment_a[0] + normal_a * m_distance, segment_a[1] + normal_a * m_distance };
             std::array<Eigen::Vector2d, 2> const new_segment_b = { segment_b[0] + normal_b * m_distance, segment_b[1] + normal_b * m_distance };
@@ -105,6 +189,16 @@ namespace Mandoline
 
             // Move the shared vertex to `intersection`
             if ((edge_a[0] == edge_b[0]) || (edge_a[0] == edge_b[1])) {
+<<<<<<< HEAD
+                graph_vertices.at(edge_a[0]) = intersection;
+            }
+            else if ((edge_a[1] == edge_b[1]) || (edge_a[1] == edge_b[0])) {
+                graph_vertices.at(edge_a[1]) = intersection;
+            }
+        }
+
+        output = Graph(graph_vertices, graph_edges);
+=======
                 polygon_vertices.at(edge_a[0]) = intersection;
             }
             else if ((edge_a[1] == edge_b[1]) || (edge_a[1] == edge_b[0])) {
@@ -127,6 +221,7 @@ namespace Mandoline
         std::reverse(std::begin(polygon_vertices), std::end(polygon_vertices));
 
         output = Polygon(polygon_vertices, polygon_edges);
+>>>>>>> 852ca8a3d89f18267859ca1be967e5ca0833c2c8
     }
     
     Slice::Slice(Polygon const &polygon, double const &spacing) : m_polygon(polygon), m_spacing(spacing)
@@ -220,7 +315,11 @@ namespace Mandoline
             auto polygon_edge_it = std::find_if(std::cbegin(polygon_edges), std::cend(polygon_edges), [vertex=out_vertices.at((*slice_edge_it)[lower_upper[0]]), polygon=m_polygon](Eigen::Array2i const &edge) { return polygon.IsPointOnEdge(vertex, edge); });
 
             if (polygon_edge_it != std::cend(polygon_edges)) {
+<<<<<<< HEAD
+                // If there are vertices still present along the current edge, find the closest
+=======
                 // If there are vertices still present along the polygon's edge, find the closest
+>>>>>>> 852ca8a3d89f18267859ca1be967e5ca0833c2c8
                 auto closest_edge_it = std::end(slice_edges);
 
                 double minimum_distance = std::numeric_limits<double>::infinity();
