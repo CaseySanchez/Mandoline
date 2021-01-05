@@ -104,11 +104,7 @@ namespace Mandoline
 
         std::vector<Eigen::Vector2d> out_vertices;
 
-<<<<<<< HEAD
         double const tau = 8.0 * std::atan(1.0);
-=======
-        double const tau = 2.0 * 3.14159;
->>>>>>> 852ca8a3d89f18267859ca1be967e5ca0833c2c8
         double const step = tau / static_cast<double>(n_sides);
 
         for (uint32_t n = 0; n < n_sides; ++n) {
