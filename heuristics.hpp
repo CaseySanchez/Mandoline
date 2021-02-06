@@ -10,7 +10,6 @@
 #include <iostream>
 
 #include "graph.hpp"
-#include "polygon.hpp"
 
 namespace Mandoline
 {
@@ -29,11 +28,11 @@ namespace Mandoline
     // Merges the graphs contained within the list to a single graph.
     class Merge
     {
-        std::vector<Graph> m_graphs;
+        Graph m_graph_lhs;
+        Graph m_graph_rhs;
 
     public:
-        Merge(std::vector<Graph> const &graphs);
-        Merge(std::initializer_list<Graph> const &graphs);
+        Merge(Graph const &graph_lhs, Graph const &graph_rhs);
 
         void Compute(Graph &output);
     };
@@ -64,16 +63,52 @@ namespace Mandoline
 
     class Slice
     {
-        Polygon m_polygon;
+        Graph m_graph;
         double m_spacing;
 
     public:
-        Slice(Polygon const &polygon, double const &spacing);
+        Slice(Graph const &graph, double const &spacing);
 
         void Compute(Graph &output);
 
     private:
-        void Segment(std::vector<Eigen::Vector2d> &out_vertices, std::vector<Eigen::Array2i> &out_edges);
-        void Connect(std::vector<Eigen::Vector2d> &out_vertices, std::vector<Eigen::Array2i> &out_edges);
+        void Segment(std::vector<Eigen::Vector2d> &output_vertices, std::vector<Eigen::Array2i> &output_edges);
+        void Connect(std::vector<Eigen::Vector2d> &output_vertices, std::vector<Eigen::Array2i> &output_edges);
+    };
+
+    // Creates vertices & edges at the intersections of the two graphs
+    class Fragment
+    {
+        Graph m_graph_lhs;
+        Graph m_graph_rhs;
+
+    public:
+        Fragment(Graph const &graph_lhs, Graph const &graph_rhs);
+        
+        void Compute(Graph &output);
+    };
+
+    // Removes edges where the midpoint falls within the polygon
+    class Difference
+    {
+        Graph m_graph_lhs;
+        Graph m_graph_rhs;
+
+    public:
+        Difference(Graph const &graph_lhs, Graph const &graph_rhs);
+        
+        void Compute(Graph &output);
+    };
+
+    // Unionizes two polygons
+    class Union
+    {
+        Graph m_graph_lhs;
+        Graph m_graph_rhs;
+        
+    public:
+        Union(Graph const &graph_lhs, Graph const &graph_rhs);
+
+        void Compute(Graph &output);
     };
 }

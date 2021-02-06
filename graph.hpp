@@ -30,5 +30,16 @@ namespace Mandoline
 
         std::array<Eigen::Vector2d, 2> Segment(Eigen::Array2i const &edge) const;
         Eigen::Hyperplane<double, 2> Line(Eigen::Array2i const &edge) const;
+
+        uint32_t Intersections(Eigen::Vector2d const &point) const;
+        bool IsPointInside(Eigen::Vector2d const &point) const;
+        bool IsPointOnEdge(Eigen::Vector2d const &point, Eigen::Array2i const &edge, double const epsilon = 1e-9) const;
+
+        Eigen::Vector2d Min() const;
+        Eigen::Vector2d Max() const;
+        Eigen::Vector2d Centroid() const;
+
+        // Generates a regular n-sided polygon
+        static Graph Regular(uint32_t const &n_sides, double const &radius);
     };
 }
