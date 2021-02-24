@@ -19,8 +19,6 @@ namespace Mandoline
         Graph();
         Graph(std::vector<Eigen::Vector2d> const &vertices, std::vector<Eigen::Array2i> const &edges);
         Graph(std::initializer_list<Eigen::Vector2d> const &vertices, std::initializer_list<Eigen::Array2i> const &edges);
-        Graph(std::vector<Eigen::Vector2d> const &vertices, bool const &loop);
-        Graph(std::initializer_list<Eigen::Vector2d> const &vertices, bool const &loop);
 
         std::vector<Eigen::Vector2d> Vertices() const;
         std::vector<Eigen::Array2i> Edges() const;
@@ -38,8 +36,5 @@ namespace Mandoline
         Eigen::Vector2d Min() const;
         Eigen::Vector2d Max() const;
         Eigen::Vector2d Centroid() const;
-
-        // Generates a regular n-sided polygon
-        static Graph Regular(uint32_t const &n_sides, double const &radius);
     };
 }

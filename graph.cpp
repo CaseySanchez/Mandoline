@@ -18,26 +18,6 @@ namespace Mandoline
     {
     }
 
-    // Creates a graph given an ordered vector of vertices
-    // Edges are generated as pairs of vertex indices
-    // V = { v0, v1, v2 }
-    // E = { { 0, 1 }, { 1, 2 } } if loop = false
-    //   = { { 0, 1 }, { 1, 2 }, { 2, 0 } } if loop = true
-    Graph::Graph(std::vector<Eigen::Vector2d> const &vertices, bool const &loop) : m_vertices(vertices)
-    {
-        for (uint32_t index = 0; index < vertices.size() - 1; index++) {
-            m_edges.emplace_back(index, index + 1);
-        }
-
-        if (loop) {
-            m_edges.emplace_back(vertices.size() - 1, 0);
-        }
-    }
-
-    Graph::Graph(std::initializer_list<Eigen::Vector2d> const &vertices, bool const &loop) : Graph(std::vector<Eigen::Vector2d>{ vertices }, loop)
-    {
-    }
-
     std::vector<Eigen::Vector2d> Graph::Vertices() const
     {
         return m_vertices;
@@ -152,26 +132,5 @@ namespace Mandoline
     Eigen::Vector2d Graph::Centroid() const
     {
         return (Min() + Max()) * 0.5;
-    }
-
-    // Generates a regular n-sided polygon
-    Graph Graph::Regular(uint32_t const &n_sides, double const &radius)
-    {
-        if (n_sides < 3) {
-            throw std::domain_error("n_sides < 3");
-        }
-
-        std::vector<Eigen::Vector2d> out_vertices;
-
-        double const tau = 8.0 * std::atan(1.0);
-        double const step = tau / static_cast<double>(n_sides);
-
-        for (uint32_t n = 0; n < n_sides; ++n) {
-            double theta = step * (static_cast<double>(n) + 0.5);
-
-            out_vertices.emplace_back(std::cos(-theta) * radius, std::sin(-theta) * radius);
-        }
-
-        return Graph(out_vertices, true);
     }
 }

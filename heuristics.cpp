@@ -6,6 +6,124 @@
 
 namespace Mandoline
 {
+    Path::Path(std::vector<Eigen::Vector2d> const &vertices) : m_vertices(vertices)
+    {
+    }
+
+    Path::Path(std::initializer_list<Eigen::Vector2d> const &vertices) : Path(std::vector<Eigen::Vector2d>{ vertices })
+    {
+    }
+
+    void Path::Compute(Graph &output)
+    {
+        std::vector<Eigen::Array2i> output_edges(m_vertices.size() - 1);
+
+        std::generate(std::begin(output_edges), std::end(output_edges), [index=0]() mutable -> Eigen::Array2i { 
+            Eigen::Array2i edge(index, index + 1); 
+            
+            index++; 
+
+            return edge; 
+        });
+
+        output = Graph(m_vertices, output_edges);
+    }
+    
+    Polygon::Polygon(std::vector<Eigen::Vector2d> const &vertices) : m_vertices(vertices)
+    {
+    }
+
+    Polygon::Polygon(std::initializer_list<Eigen::Vector2d> const &vertices) : Polygon(std::vector<Eigen::Vector2d>{ vertices })
+    {
+    }
+
+    void Polygon::Compute(Graph &output)
+    {
+        std::vector<Eigen::Array2i> output_edges(m_vertices.size() - 1);
+
+        std::generate(std::begin(output_edges), std::end(output_edges), [index=0]() mutable -> Eigen::Array2i { 
+            Eigen::Array2i edge(index, index + 1); 
+            
+            index++; 
+
+            return edge; 
+        });
+
+        output_edges.emplace_back(m_vertices.size() - 1, 0);
+
+        output = Graph(m_vertices, output_edges);
+    }
+
+    Regular::Regular(uint32_t const &sides, double const &radius) : m_sides(sides), m_radius(radius)
+    {
+    }
+
+    void Regular::Compute(Graph &output)
+    {
+        if (m_sides < 3) {
+            throw std::domain_error("Sides < 3");
+        }
+
+        std::vector<Eigen::Vector2d> output_vertices;
+
+        double const tau = 8.0 * std::atan(1.0);
+        double const step = tau / static_cast<double>(m_sides);
+
+        for (uint32_t side = 0; side < m_sides; ++side) {
+            double theta = step * (static_cast<double>(side) + 0.5);
+
+            output_vertices.emplace_back(std::cos(-theta) * m_radius, std::sin(-theta) * m_radius);
+        }
+
+        Polygon(output_vertices).Compute(output);
+    }
+
+    Bezier::Bezier(std::vector<Eigen::Vector2d> const &vertices, double const &bezier_gain) : m_vertices(vertices), m_bezier_gain(bezier_gain)
+    {
+    }
+
+    void Bezier::Compute(Graph &output)
+    {
+        if (m_bezier_gain < 1.0) {
+            throw std::invalid_argument("Bezier gain must be >= 1");
+        }
+
+        std::vector<Eigen::Vector2d> output_vertices;
+
+        double const step = 1.0 / (static_cast<double>(m_vertices.size()) * m_bezier_gain - 1.0);
+
+        for (double interpolate = 0.0; interpolate < 1.0; interpolate += step) {
+            Eigen::Vector2d output_vertex = Eigen::Vector2d::Zero();
+
+            for (size_t j = 0; j < m_vertices.size(); ++j) {
+                double const binomial_coefficient = static_cast<double>(Factorial(m_vertices.size() - 1)) / static_cast<double>(Factorial(j) * Factorial(m_vertices.size() - 1 - j));
+                double const basis = std::pow(1.0 - interpolate, static_cast<double>(m_vertices.size() - 1 - j)) * std::pow(interpolate, static_cast<double>(j)) * binomial_coefficient;
+
+                output_vertex += basis * m_vertices[j];
+            }
+
+            output_vertices.push_back(output_vertex);
+        }
+
+        Path(output_vertices).Compute(output);
+    }
+
+    // TODO: Max of 20!, need a more efficient method for calculating binomial coefficients
+    uint64_t Bezier::Factorial(uint64_t const &n)
+    {
+        if (n == 0) {
+            return 1;
+        }
+
+        uint64_t factorial = n;
+        
+        for (uint64_t factor = n - 1; factor > 0; --factor) {
+            factorial *= factor; 
+        }
+
+        return factorial;
+    }
+
     Transform::Transform(Graph const &graph, Eigen::Affine2d const &transform) : m_graph(graph), m_transform(transform)
     {
     }
@@ -26,7 +144,15 @@ namespace Mandoline
         output = Graph(output_vertices, graph_edges);
     }
 
-    Merge::Merge(Graph const &graph_lhs, Graph const &graph_rhs) : m_graph_lhs(graph_lhs), m_graph_rhs(graph_rhs)
+    Merge::Merge(Graph const &graph_lhs, Graph const &graph_rhs) : Merge({ graph_lhs, graph_rhs })
+    {
+    }
+
+    Merge::Merge(std::initializer_list<Graph> const &graphs) : m_graphs(graphs)
+    {
+    }
+
+    Merge::Merge(std::vector<Graph> const &graphs) : m_graphs(graphs)
     {
     }
 
@@ -35,21 +161,17 @@ namespace Mandoline
         std::vector<Eigen::Vector2d> output_vertices;
         std::vector<Eigen::Array2i> output_edges;
 
-        std::vector<Eigen::Vector2d> const &graph_lhs_vertices = m_graph_lhs.Vertices();
-        std::vector<Eigen::Array2i> const &graph_lhs_edges = m_graph_lhs.Edges();
+        for (Graph const &graph : m_graphs) {
+            auto edge_transform_operator = [size = output_vertices.size()](Eigen::Array2i const &edge) -> Eigen::Array2i {
+                return Eigen::Array2i(edge[0] + size, edge[1] + size);
+            };
+             
+            std::vector<Eigen::Vector2d> const &graph_vertices = graph.Vertices(); 
+            std::vector<Eigen::Array2i> const &graph_edges = graph.Edges();
 
-        std::copy(std::cbegin(graph_lhs_vertices), std::cend(graph_lhs_vertices), std::back_inserter(output_vertices));
-        std::copy(std::cbegin(graph_lhs_edges), std::cend(graph_lhs_edges), std::back_inserter(output_edges));
-
-        auto edge_transform_operator = [size = output_vertices.size()](Eigen::Array2i const &edge) -> Eigen::Array2i {
-            return Eigen::Array2i(edge[0] + size, edge[1] + size);
-        };
-
-        std::vector<Eigen::Vector2d> const &graph_rhs_vertices = m_graph_rhs.Vertices();
-        std::vector<Eigen::Array2i> const &graph_rhs_edges = m_graph_rhs.Edges();
-
-        std::copy(std::cbegin(graph_rhs_vertices), std::cend(graph_rhs_vertices), std::back_inserter(output_vertices));
-        std::transform(std::cbegin(graph_rhs_edges), std::cend(graph_rhs_edges), std::back_inserter(output_edges), edge_transform_operator);
+            std::copy(std::cbegin(graph_vertices), std::cend(graph_vertices), std::back_inserter(output_vertices));
+            std::transform(std::cbegin(graph_edges), std::cend(graph_edges), std::back_inserter(output_edges), edge_transform_operator);
+        }
 
         output = Graph(output_vertices, output_edges);
     }
@@ -217,15 +339,15 @@ namespace Mandoline
 
         output_edges.clear();
 
-        // `lower_upper` specifies which of the two edge indices we are referring to, 
+        // `edge_index` specifies which of the two edge indices we are referring to, 
         //  either index 0 or index 1.
-        std::array<int32_t, 2> lower_upper { 0, 0 };
+        std::array<int32_t, 2> edge_index { 0, 0 };
 
         auto slice_edge_it = std::begin(slice_edges);
 
         while (slice_edge_it != std::end(slice_edges)) {
             // Get the graph edge on which the vertex lay
-            auto graph_edge_it = std::find_if(std::cbegin(graph_edges), std::cend(graph_edges), [vertex=output_vertices.at((*slice_edge_it)[lower_upper[0]]), graph=m_graph](Eigen::Array2i const &edge) { return graph.IsPointOnEdge(vertex, edge); });
+            auto graph_edge_it = std::find_if(std::cbegin(graph_edges), std::cend(graph_edges), [vertex=output_vertices.at((*slice_edge_it)[edge_index[0]]), graph=m_graph](Eigen::Array2i const &edge) { return graph.IsPointOnEdge(vertex, edge); });
 
             if (graph_edge_it != std::cend(graph_edges)) {
                 // If there are vertices still present along the current edge, find the closest
@@ -234,9 +356,9 @@ namespace Mandoline
                 double minimum_distance = std::numeric_limits<double>::infinity();
 
                 for (auto other_edge_it = std::begin(slice_edges); other_edge_it != std::end(slice_edges); ++other_edge_it) {
-                    if (other_edge_it != slice_edge_it && m_graph.IsPointOnEdge(output_vertices.at((*other_edge_it)[lower_upper[1]]), *graph_edge_it)) {
-                        Eigen::Vector2d vertex_to = output_vertices.at((*other_edge_it)[lower_upper[1]]);
-                        Eigen::Vector2d vertex_from = output_vertices.at((*slice_edge_it)[lower_upper[0]]);
+                    if (other_edge_it != slice_edge_it && m_graph.IsPointOnEdge(output_vertices.at((*other_edge_it)[edge_index[1]]), *graph_edge_it)) {
+                        Eigen::Vector2d vertex_to = output_vertices.at((*other_edge_it)[edge_index[1]]);
+                        Eigen::Vector2d vertex_from = output_vertices.at((*slice_edge_it)[edge_index[0]]);
 
                         double distance = (vertex_to - vertex_from).norm();
 
@@ -254,7 +376,7 @@ namespace Mandoline
 
                     for (auto other_edge_it = std::begin(slice_edges); other_edge_it != std::end(slice_edges); ++other_edge_it) {
                         if (other_edge_it != slice_edge_it) {
-                            Eigen::Vector2d vertex_from = output_vertices.at((*slice_edge_it)[lower_upper[0]]);
+                            Eigen::Vector2d vertex_from = output_vertices.at((*slice_edge_it)[edge_index[0]]);
                             
                             // Check if the vertex at index 0 of `other_edge_it` is the closest
                             {
@@ -267,7 +389,7 @@ namespace Mandoline
 
                                     minimum_distance = distance;
 
-                                    lower_upper[1] = 0;
+                                    edge_index[1] = 0;
                                 }
                             } 
 
@@ -282,7 +404,7 @@ namespace Mandoline
 
                                     minimum_distance = distance;
 
-                                    lower_upper[1] = 1;
+                                    edge_index[1] = 1;
                                 }
                             }
                         }
@@ -294,7 +416,7 @@ namespace Mandoline
                     output_edges.push_back(*slice_edge_it);
 
                     // Connect and add the relevant vertices of `slice_edge_it` and `closest_edge_it`
-                    output_edges.emplace_back((*slice_edge_it)[lower_upper[0]], (*closest_edge_it)[lower_upper[1]]);
+                    output_edges.emplace_back((*slice_edge_it)[edge_index[0]], (*closest_edge_it)[edge_index[1]]);
 
                     // Erase the iterator from `slice_edges` and increment `closest_edge_it` if necessary
                     std::ptrdiff_t distance = std::distance(slice_edge_it, closest_edge_it) - 1;
@@ -305,13 +427,13 @@ namespace Mandoline
                         closest_edge_it = std::next(slice_edge_it, distance);
                     }
 
-                    if (lower_upper[1] == 0) {
+                    if (edge_index[1] == 0) {
                         // Connect upper edge indices
-                        lower_upper = { 1, 1 };
+                        edge_index = { 1, 1 };
                     }
                     else {
                         // Connect lower edge indices
-                        lower_upper = { 0, 0 };
+                        edge_index = { 0, 0 };
                     }
                 }
 
@@ -341,8 +463,8 @@ namespace Mandoline
         };
 
         std::vector<Eigen::Vector2d> output_vertices = m_graph_lhs.Vertices();
-        std::vector<Eigen::Array2i> output_edges = m_graph_lhs.Edges();
 
+        std::vector<Eigen::Array2i> insert_edges = m_graph_lhs.Edges();
         std::vector<Eigen::Array2i> remove_edges;
 
         std::vector<Eigen::Array2i> const &graph_lhs_edges = m_graph_lhs.Edges();
@@ -361,22 +483,22 @@ namespace Mandoline
 
                     output_vertices.push_back(intersection);
 
-                    output_edges.emplace_back(index, graph_lhs_edge[0]);
-                    output_edges.emplace_back(index, graph_lhs_edge[1]);
+                    insert_edges.emplace_back(index, graph_lhs_edge[0]);
+                    insert_edges.emplace_back(index, graph_lhs_edge[1]);
 
                     remove_edges.push_back(graph_lhs_edge);
                 }
             }
         }
         
-        std::vector<Eigen::Array2i> output_difference_edges;
-
-        std::sort(std::begin(output_edges), std::end(output_edges), edge_comparator);
+        std::sort(std::begin(insert_edges), std::end(insert_edges), edge_comparator);
         std::sort(std::begin(remove_edges), std::end(remove_edges), edge_comparator);
 
-        std::set_difference(std::cbegin(output_edges), std::cend(output_edges), std::cbegin(remove_edges), std::cend(remove_edges), std::back_inserter(output_difference_edges), edge_comparator);
+        std::vector<Eigen::Array2i> output_edges;
+
+        std::set_difference(std::cbegin(insert_edges), std::cend(insert_edges), std::cbegin(remove_edges), std::cend(remove_edges), std::back_inserter(output_edges), edge_comparator);
         
-        output = Graph(output_vertices, output_difference_edges);
+        output = Graph(output_vertices, output_edges);
     }
 
     Difference::Difference(Graph const &graph_lhs, Graph const &graph_rhs) : m_graph_lhs(graph_lhs), m_graph_rhs(graph_rhs)
